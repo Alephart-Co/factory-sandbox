@@ -11,3 +11,8 @@ test('agrupa miles con punto', () => {
   assert.equal(formatCOP(1200000), '$1.200.000');
   assert.equal(formatCOP(1000000), '$1.000.000');
 });
+
+test('no agrupa valores con decimales', () => {
+  assert.equal(formatCOP(1200.5), '$1200.5');
+  assert.equal(formatCOP(1200.567), '$1200.567');
+});
