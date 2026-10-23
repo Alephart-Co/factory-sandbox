@@ -7,18 +7,38 @@ export function formatCOP(value) {
   return signo + '$' + absoluto.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-// Lee el primer monto escrito en texto libre (p. ej. '$1.200.000', '95 mil', '1,2 millones').
-// Devuelve el número o null si no hay monto válido.
+const ESCALAS = { mil: 1000, millon: 1000000, millón: 1000000, millones: 1000000 };
+
+// Lee un único monto en pesos escrito por el contacto ('$1.200.000', '95 mil', '1,2 millones', '2M').
+// Devuelve el valor en pesos enteros, o null si no hay un monto claro y único.
 export function parseCOP(texto) {
   if (typeof texto !== 'string') return null;
-  const coincidencia = texto.match(/(\d+(?:\.\d+)*)(?:,(\d+))?(?:\s*(millones|mil)\b)?/i);
-  if (!coincidencia) return null;
-  const [, enteroTexto, decimales, escalaTexto] = coincidencia;
-  const grupos = enteroTexto.split('.');
-  if (grupos.length > 1 && (grupos[0].length > 3 || grupos.slice(1).some((g) => g.length !== 3))) {
-    return null;
+
+  const numeros = [...texto.matchAll(/\d[\d.,]*/g)];
+  if (numeros.length !== 1) return null;
+
+  const [crudo] = numeros[0];
+  const numero = crudo.replace(/[.,]+$/, '');
+  const antes = texto.slice(0, numeros[0].index);
+  const despues = texto.slice(numeros[0].index + numero.length);
+  if (/-[\s$]*$/.test(antes)) return null;
+
+  const formato = numero.match(/^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/);
+  if (!formato) return null;
+  const [, entero, decimales] = formato;
+
+  const palabra = despues.match(/^\s*(\p{L}+)/u)?.[1];
+  let escala = 1;
+  if (palabra) {
+    const minuscula = palabra.toLowerCase();
+    if (minuscula in ESCALAS) escala = ESCALAS[minuscula];
+    else if (palabra === 'M') escala = 1000000;
+    else if (minuscula === 'k' || minuscula.startsWith('mil')) return null;
   }
-  const escala = { mil: 1000, millones: 1000000 }[escalaTexto?.toLowerCase()] ?? 1;
-  const numero = Number(enteroTexto.replaceAll('.', '') + (decimales ? '.' + decimales : ''));
-  return Math.round(numero * escala * 100) / 100;
+
+  if (escala === 1 && decimales) return null;
+  if (escala === 1 && /^\d{10,}$/.test(entero)) return null;
+
+  const valor = Number(entero.replaceAll('.', '') + (decimales ? '.' + decimales : ''));
+  return Math.round(valor * escala);
 }
