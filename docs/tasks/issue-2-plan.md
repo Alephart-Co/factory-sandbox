@@ -69,7 +69,7 @@ Todas las condiciones del triage se cubren sin cambios:
 | Decimales solo con escala (`'1,2 millones'` → `1200000`) | Aceptar `'1,5'` → `1.5` | @alephart: "en pesos nadie escribe decimales; `1,5` solo tiene sentido con millones"; regla general: **sin escala no hay decimales** |
 | Negativos → `null` | Parsear negativos | `formatCOP` los produce pero no hay evidencia de montos negativos en mensajes del contacto; si se necesitan, issue aparte |
 | Teléfonos de 10+ dígitos sin separadores → `null` | Aceptarlos como montos | Un teléfono como `'3001234567'` no es un monto; la regla de "varios números" lo rechaza |
-| `M` solo mayúscula | `m` minúscula también | `M` es abreviatura estándar de "millón" (SI); `m` es metro. Escenario 29: `'2 m'` → `2` (palabra desconocida) |
+| `M` solo mayúscula | `m` minúscula también | `M` es abreviatura estándar de "millón" (SI); `m` es metro. Escenario 29: `'2 m'` → `null` (decisión de @alephart, 2026-10-23) |
 | `k` excluido | `k` = 1000 | @alephart: "nada de k"; además, `k` es más común en inglés que en español |
 | Palabra completa de escala (`\b` tras `mil`/`millon`/`M`) | Sin límite | Evita `'5 milagros'` → `5000` (hallazgo 2 del review); `'militares'` o `'millonarios'` no son escalas |
 | Aritmética con flotantes + `Math.round` | Librería decimal | `AGENTS.md:3` prohíbe dependencias sin justificación; `Math.round(x * escala)` es exacto para los casos cubiertos y evita residuos de punto flotante (ej: `1.2 * 1e6 = 1200000.0000000002` → `1200000`) |
@@ -98,7 +98,7 @@ Todas las condiciones del triage se cubren sin cambios:
   2. Buscar todos los números con `/\d[\d.,]*/g`. Si no hay exactamente uno → `return null` (escenarios 16, 18, 28)
   3. Quitar `.` y `,` finales del número capturado. Mirar el texto **antes** del número: si termina en `-` (con espacios/`$` opcionales) → `return null` (escenario 26: negativos fuera)
   4. Validar que el número cumple `^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$` (miles con punto, opcional coma decimal). Si no cumple (`'1.2'`, `'12.34.567'`, `'1.200,50'`) → `return null` (escenarios 12-14)
-  5. Extraer la palabra de letras (`/\p{L}+/u`) que sigue al número tras espacios opcionales. Si es `mil`, `millon`, `millón`, `millones` (sin importar mayúsculas, con o sin tilde) → escala 1.000 / 1.000.000. Si es exactamente `M` (mayúscula) → escala 1.000.000. Si no es escala exacta pero empieza por `mil` o `mill` (`'milagros'`, `'militares'`, `'millonarios'`) o es `k`/`K` → `return null` (escenarios 21-23). Cualquier otra palabra (`'pesos'`, `'COP'`, `'de'`, `'m'`) → escala 1 (sin multiplicador, escenario 29-30).
+  5. Extraer la palabra de letras (`/\p{L}+/u`) que sigue al número tras espacios opcionales. Si es `mil`, `millon`, `millón`, `millones` (sin importar mayúsculas, con o sin tilde) → escala 1.000 / 1.000.000. Si es exactamente `M` (mayúscula) → escala 1.000.000. Si no es escala exacta pero empieza por `mil` o `mill` (`'milagros'`, `'militares'`, `'millonarios'`) o es `k`/`K` → `return null` (escenarios 21-23). Si es `m` minúscula → `return null` (decisión de @alephart, escenario 29). Cualquier otra palabra (`'pesos'`, `'COP'`, `'de'`) → escala 1 (sin multiplicador, escenario 29-30).
   6. Si hay parte decimal (`,N`) y escala 1 → `return null` (escenario 14: decimales solo con escala). Si el número es entero sin puntos, escala 1, y tiene 10+ dígitos → `return null` (escenario 27: teléfonos fuera).
   7. Construir el número: quitar puntos de miles, reemplazar coma por punto. Devolver `Math.round(Number(resultado) * escala)`.
 - **Pruebas:** las 30 de la Fase 1 pasan.
@@ -142,8 +142,9 @@ Todas las condiciones del triage se cubren sin cambios:
 | 26 | `formatCOP(-1200000)` = `'-$1.200.000'`, `'-500'` | `parseCOP` | `null` | `1200000`, `500` | negativos fuera (no roundtrip) |
 | 27 | `'3001234567'` | `parseCOP` | `null` | `3001234567` | teléfono sin separadores: 10+ dígitos enteros sin puntos |
 | 28 | `'+57 300 123 4567'` | `parseCOP` | `null` | un monto | varios números → ambiguo |
-| 29 | `'2 m'` | `parseCOP` | `2` | `2000000` | `m` minúscula no es escala `M`; palabra desconocida → escala 1 |
+| 29 | `'2 m'`, `'2m'` | `parseCOP` | `null` | `2`, `2000000` | `m` minúscula es ambigua (metro); decisión de @alephart → `null` |
 | 30 | `'2 millones de pesos'` | `parseCOP` | `2000000` | `null` | texto después de la escala no afecta |
+| 31 | `'1,000 mil'` | `parseCOP` | `null` | `1000` | Decimal de exactamente 3 dígitos es ambiguo con separador de miles; decisión de @alephart → `null` (`'1,2 millones'` sigue → `1200000`) |
 
 ## Operación
 
@@ -166,7 +167,7 @@ No aplica — función pura de texto a número, sin secretos, sin datos de clien
 | Riesgo | Cómo se detecta temprano | Mitigación |
 |---|---|---|
 | Rechazo excesivo: cualquier número extra en el mensaje (id de pedido, fecha, `'2 hijos'`) vuelve todo `null` | Escenarios 18-19, 28; revisar mensajes reales del contacto | Es el comportamiento pedido por @alephart ("varios montos es ambiguo"); si molesta en producción, issue aparte para ajustar la regla |
-| Aceptación incorrecta: `'5 Metros'` o `'2 m'` leen `5`/`2` (palabra desconocida tras el número) | Escenario 29 | Aceptado: solo se bloquean palabras que parecen escala (`mil*`, `mill*`, `k`/`K`); `m` minúscula y otras palabras → escala 1 |
+| Aceptación incorrecta: `'5 Metros'` lee `5` (palabra desconocida tras el número) | Escenario 29 | Aceptado: se bloquean palabras que parecen escala (`mil*`, `mill*`, `k`/`K`) y `m` minúscula; otras palabras → escala 1 |
 | Regex acepta montos mal formados (`'1.2'`, `'12.34.567'`) como si fueran válidos | Escenarios 12-13 | Validación explícita del patrón de miles (grupos de 3 dígitos) y decimales (máx. 1 coma) en paso 4 de la Fase 2 |
 | Redondeo a pesos altera el valor de decimales | Escenarios 3, 15 | Solo se redondea **tras** multiplicar por la escala; sin escala no hay decimales (regla de @alephart); el redondeo elimina residuos de punto flotante |
 | Consumidor futuro quiere soportar decimales sin escala o negativos | Issue de integración (cuando exista el consumidor) | Decisiones registradas arriba; si se necesitan, issue aparte con justificación de caso de uso real |
@@ -174,7 +175,7 @@ No aplica — función pura de texto a número, sin secretos, sin datos de clien
 ## Supuestos
 
 - `'1,5'` sin escala → `null`; formatos soportados (`mil`/`millón`/`M`); varios montos → `null`; `k` y montos en letras fuera — **verificado:** [respuesta de @alephart del 2026-10-22 23:53](https://github.com/Alephart-Co/factory-sandbox/issues/2#issuecomment-6353933405)
-- `M` solo en mayúscula (no `m`) — decisión de este plan; **sin verificar:** ¿el contacto escribe `'2m'` en mensajes reales? (pedir ejemplos si se necesita ajustar)
+- `M` solo en mayúscula; `m` minúscula → `null` (confirmado por @alephart, 2026-10-23)
 - `0` es un monto válido (`parseCOP('0')` → `0`) — decisión de este plan; **sin verificar:** si el consumidor prefiere que `'0'` devuelva `null` (ajustar si se pide)
 - Negativos y teléfonos de 10+ dígitos sin separadores → `null` — decisión de este plan; **sin verificar:** ejemplos reales de mensajes del contacto (¿hay negativos? ¿cómo escriben los teléfonos?)
 - No hay consumidor de `parseCOP` en el repo — **verificado:** `git grep parseCOP` vacío en main; **sin verificar:** otras ramas o repos externos

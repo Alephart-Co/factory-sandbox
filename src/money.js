@@ -33,7 +33,7 @@ export function parseCOP(texto) {
     const minuscula = palabra.toLowerCase();
     if (Object.hasOwn(ESCALAS, minuscula)) escala = ESCALAS[minuscula];
     else if (palabra === 'M') escala = 1000000;
-    else if (minuscula === 'k' || minuscula.startsWith('mil')) return null;
+    else if (minuscula === 'k' || minuscula === 'm' || minuscula.startsWith('mil')) return null;
   }
 
   if (escala > 1) {
@@ -41,6 +41,7 @@ export function parseCOP(texto) {
     if (siguiente && (Object.hasOwn(ESCALAS, siguiente.toLowerCase()) || siguiente === 'M')) return null;
   }
 
+  if (decimales?.length === 3) return null;
   if (escala === 1 && decimales) return null;
   if (escala === 1 && /^\d{10,}$/.test(entero)) return null;
 

@@ -154,8 +154,10 @@ test('parseCOP rechaza varios números como un teléfono con espacios', () => {
   assert.equal(parseCOP('+57 300 123 4567'), null);
 });
 
-test('parseCOP trata la m minúscula como palabra desconocida', () => {
-  assert.equal(parseCOP('2 m'), 2);
+test('parseCOP rechaza la m minúscula (ambigua con metro)', () => {
+  assert.equal(parseCOP('2 m'), null);
+  assert.equal(parseCOP('2m'), null);
+  assert.equal(parseCOP('2M'), 2000000);
 });
 
 test('parseCOP ignora el texto después de la escala', () => {
@@ -169,4 +171,9 @@ test('parseCOP trata palabras heredadas de Object como palabra desconocida', () 
 
 test('parseCOP rechaza dos escalas seguidas', () => {
   assert.equal(parseCOP('5 mil millones'), null);
+});
+
+test('parseCOP rechaza decimales de tres dígitos por ambiguos con separador de miles', () => {
+  assert.equal(parseCOP('1,000 mil'), null);
+  assert.equal(parseCOP('1,2 millones'), 1200000);
 });
