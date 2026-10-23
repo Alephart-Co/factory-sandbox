@@ -161,3 +161,12 @@ test('parseCOP trata la m minúscula como palabra desconocida', () => {
 test('parseCOP ignora el texto después de la escala', () => {
   assert.equal(parseCOP('2 millones de pesos'), 2000000);
 });
+
+test('parseCOP trata palabras heredadas de Object como palabra desconocida', () => {
+  assert.equal(parseCOP('5 constructor'), 5);
+  assert.equal(parseCOP('5 toString'), 5);
+});
+
+test('parseCOP rechaza dos escalas seguidas', () => {
+  assert.equal(parseCOP('5 mil millones'), null);
+});

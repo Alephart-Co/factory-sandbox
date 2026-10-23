@@ -31,9 +31,14 @@ export function parseCOP(texto) {
   let escala = 1;
   if (palabra) {
     const minuscula = palabra.toLowerCase();
-    if (minuscula in ESCALAS) escala = ESCALAS[minuscula];
+    if (Object.hasOwn(ESCALAS, minuscula)) escala = ESCALAS[minuscula];
     else if (palabra === 'M') escala = 1000000;
     else if (minuscula === 'k' || minuscula.startsWith('mil')) return null;
+  }
+
+  if (escala > 1) {
+    const siguiente = despues.match(/^\s*\p{L}+\s+(\p{L}+)/u)?.[1];
+    if (siguiente && (Object.hasOwn(ESCALAS, siguiente.toLowerCase()) || siguiente === 'M')) return null;
   }
 
   if (escala === 1 && decimales) return null;
