@@ -1,5 +1,8 @@
 // Formatea un valor en pesos colombianos para mostrarlo al contacto.
 export function formatCOP(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError('formatCOP espera un número finito');
+  }
   const texto = String(value);
   const signo = texto.startsWith('-') ? '-' : '';
   const absoluto = signo ? texto.slice(1) : texto;

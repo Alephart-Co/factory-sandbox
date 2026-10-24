@@ -177,3 +177,14 @@ test('parseCOP rechaza decimales de tres dígitos por ambiguos con separador de 
   assert.equal(parseCOP('1,000 mil'), null);
   assert.equal(parseCOP('1,2 millones'), 1200000);
 });
+
+test('formatCOP lanza TypeError si la entrada no es un número finito', () => {
+  for (const entrada of [null, undefined, {}, [], 'abc', '1200', 10n, NaN, Infinity, -Infinity]) {
+    assert.throws(() => formatCOP(entrada), TypeError);
+  }
+});
+
+test('formatCOP sigue formateando cero', () => {
+  assert.equal(formatCOP(0), '$0');
+  assert.equal(formatCOP(-0), '$0');
+});
