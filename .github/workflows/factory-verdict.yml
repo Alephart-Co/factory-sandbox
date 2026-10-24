@@ -1,0 +1,81 @@
+# Gate de merge de la Factory (decisión A, vault 03-modelo/consolidacion-2026-10-23).
+# Publica el estado `factory-verdict` en el head del PR a partir del veredicto que deja la review de la Factory
+# como comentario ("Verdict: approve" + "Reviewed head: <sha>"). Solo confía en comentarios del bot de la Factory.
+name: factory-verdict
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  statuses: write
+
+concurrency:
+  group: factory-verdict-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  verdict:
+    if: github.event_name == 'pull_request' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          # Login del bot de la Factory, p. ej. agenttic-factory[bot]. Variable del repo o de la organización.
+          FACTORY_BOT_LOGIN: ${{ vars.FACTORY_BOT_LOGIN }}
+          MAX_ROUNDS: ${{ vars.FACTORY_MAX_ROUNDS || '2' }}
+        with:
+          script: |
+            const bot = process.env.FACTORY_BOT_LOGIN;
+            const maxRounds = Number(process.env.MAX_ROUNDS);
+            if (!bot) { core.setFailed('Falta la variable FACTORY_BOT_LOGIN'); return; }
+
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request?.number ?? context.payload.issue.number;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const head = pr.head.sha;
+
+            const setStatus = (state, description) =>
+              github.rest.repos.createCommitStatus({
+                owner, repo, sha: head, state, context: 'factory-verdict',
+                description: description.slice(0, 140),
+              });
+
+            // PR que no abrió la Factory: el gate no aplica (lo cubre la revisión normal del repo).
+            if (pr.user.login !== bot) {
+              await setStatus('success', 'PR humano: no aplica el veredicto de la Factory');
+              return;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: number, per_page: 100,
+            });
+
+            // Veredictos del bot: primera línea "Verdict: <x>" y una línea "Reviewed head: <sha>".
+            // Un comentario editado después de publicado no cuenta (alguien con escritura pudo cambiarlo).
+            const verdicts = comments
+              .filter(c => c.user.login === bot && c.created_at === c.updated_at)
+              .map(c => {
+                const v = /^Verdict:\s*(approve|request[ _-]?changes)\b/im.exec(c.body);
+                const h = /^Reviewed head:\s*([0-9a-f]{40})\b/im.exec(c.body);
+                return v && h ? { verdict: v[1].toLowerCase().startsWith('approve') ? 'approve' : 'changes', sha: h[1] } : null;
+              })
+              .filter(Boolean);
+
+            const rounds = new Set(verdicts.filter(v => v.verdict === 'changes').map(v => v.sha)).size;
+            const current = verdicts.filter(v => v.sha === head).at(-1);
+
+            if (current?.verdict === 'approve') {
+              await setStatus('success', `approve sobre ${head.slice(0, 7)} (${rounds} ronda(s) de cambios)`);
+            } else if (rounds >= maxRounds && current?.verdict !== 'approve') {
+              await setStatus('failure', `${rounds} rondas de cambios: escalar a una persona`);
+            } else if (current?.verdict === 'changes') {
+              await setStatus('failure', `request changes sobre ${head.slice(0, 7)}`);
+            } else {
+              await setStatus('pending', `esperando la review de la Factory sobre ${head.slice(0, 7)}`);
+            }
