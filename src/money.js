@@ -4,6 +4,9 @@ export function formatCOP(value) {
     throw new TypeError('formatCOP espera un número finito');
   }
   const texto = String(value);
+  if (texto.includes('e')) {
+    throw new TypeError('formatCOP no admite números en notación exponencial');
+  }
   const signo = texto.startsWith('-') ? '-' : '';
   const absoluto = signo ? texto.slice(1) : texto;
   if (absoluto.includes('.')) return signo + '$' + absoluto;

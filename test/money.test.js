@@ -184,6 +184,17 @@ test('formatCOP lanza TypeError si la entrada no es un número finito', () => {
   }
 });
 
+test('formatCOP lanza TypeError si el número saldría en notación exponencial', () => {
+  for (const entrada of [1e21, -1e21, 1e-7, -1e-7, 1.5e-7]) {
+    assert.throws(() => formatCOP(entrada), TypeError);
+  }
+});
+
+test('formatCOP sigue formateando los límites previos a la notación exponencial', () => {
+  assert.equal(formatCOP(1e20), '$100.000.000.000.000.000.000');
+  assert.equal(formatCOP(1e-6), '$0.000001');
+});
+
 test('formatCOP sigue formateando cero', () => {
   assert.equal(formatCOP(0), '$0');
   assert.equal(formatCOP(-0), '$0');
