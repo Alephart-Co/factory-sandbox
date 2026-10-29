@@ -12,15 +12,27 @@ test('agrupa miles con punto', () => {
   assert.equal(formatCOP(1000000), '$1.000.000');
 });
 
-test('no agrupa valores con decimales', () => {
-  assert.equal(formatCOP(1200.5), '$1200.5');
-  assert.equal(formatCOP(1200.567), '$1200.567');
+test('formatCOP redondea a pesos enteros', () => {
+  assert.equal(formatCOP(1200.5), '$1.201');
+  assert.equal(formatCOP(1200.567), '$1.201');
+  assert.equal(formatCOP(1234567.5), '$1.234.568');
+  assert.equal(formatCOP(1200.4), '$1.200');
+  assert.equal(formatCOP(0.5), '$1');
+  assert.equal(formatCOP(1.005), '$1');
+  assert.equal(formatCOP(2.675), '$3');
 });
 
 test('pone el signo negativo antes del $', () => {
   assert.equal(formatCOP(-1200000), '-$1.200.000');
   assert.equal(formatCOP(-500), '-$500');
-  assert.equal(formatCOP(-1200.5), '-$1200.5');
+  assert.equal(formatCOP(-1200.5), '-$1.201');
+  assert.equal(formatCOP(-1.5), '-$2');
+});
+
+test('formatCOP no deja signo en un resultado de cero', () => {
+  for (const entrada of [-0.4, -0.0000005, -1e-7]) {
+    assert.equal(formatCOP(entrada), '$0');
+  }
 });
 
 test('parseCOP lee miles con punto', () => {
@@ -137,8 +149,8 @@ test('parseCOP lee de vuelta enteros positivos formateados con formatCOP', () =>
   assert.equal(parseCOP(formatCOP(1200000)), 1200000);
 });
 
-test('parseCOP rechaza la salida de formatCOP con decimales', () => {
-  assert.equal(parseCOP(formatCOP(1200.5)), null);
+test('parseCOP lee de vuelta la salida redondeada de formatCOP', () => {
+  assert.equal(parseCOP(formatCOP(1200.5)), 1201);
 });
 
 test('parseCOP rechaza negativos', () => {
@@ -184,15 +196,20 @@ test('formatCOP lanza TypeError si la entrada no es un número finito', () => {
   }
 });
 
-test('formatCOP lanza TypeError si el número saldría en notación exponencial', () => {
-  for (const entrada of [1e21, -1e21, 1e-7, -1e-7, 1.5e-7]) {
+test('formatCOP lanza TypeError desde 1e21', () => {
+  for (const entrada of [1e21, -1e21]) {
     assert.throws(() => formatCOP(entrada), TypeError);
   }
 });
 
 test('formatCOP sigue formateando los límites previos a la notación exponencial', () => {
   assert.equal(formatCOP(1e20), '$100.000.000.000.000.000.000');
-  assert.equal(formatCOP(1e-6), '$0.000001');
+});
+
+test('formatCOP redondea a $0 los valores casi nulos', () => {
+  for (const entrada of [1e-6, -1e-6, 1e-7, 1.5e-7, 5e-324]) {
+    assert.equal(formatCOP(entrada), '$0');
+  }
 });
 
 test('formatCOP sigue formateando cero', () => {

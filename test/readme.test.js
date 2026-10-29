@@ -10,6 +10,11 @@ test('el ejemplo de formatCOP del README coincide con el código', () => {
   assert.equal(formatCOP(1200000), '$1.200.000');
 });
 
+test('el ejemplo de redondeo de formatCOP del README coincide con el código', () => {
+  assert.ok(readme.includes("`formatCOP(1234567.5)` → `'$1.234.568'`"));
+  assert.equal(formatCOP(1234567.5), '$1.234.568');
+});
+
 test('el ejemplo de parseCOP del README coincide con el código', () => {
   assert.ok(readme.includes("`parseCOP('95 mil')` → `95000`"));
   assert.equal(parseCOP('95 mil'), 95000);
