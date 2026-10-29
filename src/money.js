@@ -1,16 +1,14 @@
-// Formatea un valor en pesos colombianos para mostrarlo al contacto.
+// Formatea un valor en pesos colombianos para mostrarlo al contacto, redondeado a pesos enteros.
 export function formatCOP(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new TypeError('formatCOP espera un número finito');
   }
-  const texto = String(value);
-  if (texto.includes('e')) {
-    throw new TypeError('formatCOP no admite números en notación exponencial');
+  if (Math.abs(value) >= 1e21) {
+    throw new TypeError('formatCOP no admite números de 1e21 o más');
   }
-  const signo = texto.startsWith('-') ? '-' : '';
-  const absoluto = signo ? texto.slice(1) : texto;
-  if (absoluto.includes('.')) return signo + '$' + absoluto;
-  return signo + '$' + absoluto.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const entero = Math.round(Math.abs(value));
+  const signo = value < 0 && entero !== 0 ? '-' : '';
+  return signo + '$' + String(entero).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 const ESCALAS = { mil: 1000, millon: 1000000, millón: 1000000, millones: 1000000 };
