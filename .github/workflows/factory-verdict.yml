@@ -1,10 +1,16 @@
 # Gate de merge de la Factory (decisión A, vault 03-modelo/consolidacion-2026-10-23).
 # Publica el estado `factory-verdict` en el head del PR a partir del veredicto que deja la review de la Factory
 # como comentario ("Verdict: approve" + "Reviewed head: <sha>"). Solo confía en comentarios del bot de la Factory.
+#
+# Blindaje contra bots:
+# - pull_request_target: corre siempre la versión de este archivo que está en main. Un PR que lo modifique no cambia
+#   cómo se evalúa a sí mismo. Es seguro porque el job no hace checkout ni ejecuta código del PR: solo lee la API.
+# - Un PR de cualquier bot que no sea el de la Factory queda en rojo (no pasa como "PR humano").
+# - Un PR del bot que toque .github/ queda en rojo: los cambios al gate o al CI los aprueba una persona.
 name: factory-verdict
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
@@ -20,8 +26,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verdict:
-    if: github.event_name == 'pull_request' || github.event.issue.pull_request
+  publicar-estado:
+    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
@@ -46,9 +52,27 @@ jobs:
                 description: description.slice(0, 140),
               });
 
-            // PR que no abrió la Factory: el gate no aplica (lo cubre la revisión normal del repo).
-            if (pr.user.login !== bot) {
-              await setStatus('success', 'PR humano: no aplica el veredicto de la Factory');
+            const isFactoryBot = pr.user.login === bot;
+
+            // Solo una cuenta de persona pasa sin veredicto (lo cubre la revisión normal del repo).
+            // Cualquier otro bot (otra App, la App de desarrollo, Dependabot) queda en rojo hasta que una persona decida.
+            if (!isFactoryBot) {
+              if (pr.user.type === 'User') {
+                await setStatus('success', 'PR humano: no aplica el veredicto de la Factory');
+              } else {
+                await setStatus('failure', `PR de un bot no autorizado (${pr.user.login}): escalar a una persona`);
+              }
+              return;
+            }
+
+            // El bot no puede cambiar el gate ni el CI: con eso podría aprobarse a sí mismo en el siguiente PR.
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const touchesGithubDir = files.some(f =>
+              [f.filename, f.previous_filename].some(name => name?.startsWith('.github/')));
+            if (touchesGithubDir) {
+              await setStatus('failure', 'El PR de la Factory toca .github/: escalar a una persona');
               return;
             }
 
