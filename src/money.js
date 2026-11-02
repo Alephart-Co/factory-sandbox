@@ -13,7 +13,7 @@ export function formatCOP(value) {
 
 const ESCALAS = { mil: 1000, millon: 1000000, millón: 1000000, millones: 1000000 };
 
-// Lee un único monto en pesos escrito por el contacto ('$1.200.000', '95 mil', '1,2 millones', '2M').
+// Lee un único monto en pesos escrito por el contacto ('$1.200.000', '95 mil', '1,2 millones', '1.5 millones', '2M').
 // Devuelve el valor en pesos enteros, o null si no hay un monto claro y único.
 export function parseCOP(texto) {
   if (typeof texto !== 'string') return null;
@@ -27,7 +27,9 @@ export function parseCOP(texto) {
   const despues = texto.slice(numeros[0].index + numero.length);
   if (/-[\s$]*$/.test(antes)) return null;
 
-  const formato = numero.match(/^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/);
+  // Con escala, un punto seguido de 1-2 o de 4+ dígitos es decimal; con 3 sigue siendo punto de miles.
+  const normalizado = numero.replace(/^(\d+)\.(\d{1,2}|\d{4,})$/, '$1,$2');
+  const formato = normalizado.match(/^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/);
   if (!formato) return null;
   const [, entero, decimales] = formato;
 

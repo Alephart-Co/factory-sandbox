@@ -19,3 +19,8 @@ test('el ejemplo de parseCOP del README coincide con el código', () => {
   assert.ok(readme.includes("`parseCOP('95 mil')` → `95000`"));
   assert.equal(parseCOP('95 mil'), 95000);
 });
+
+test('el ejemplo de parseCOP con punto decimal del README coincide con el código', () => {
+  assert.ok(readme.includes("`parseCOP('1.5 millones')` → `1500000`"));
+  assert.equal(parseCOP('1.5 millones'), 1500000);
+});
