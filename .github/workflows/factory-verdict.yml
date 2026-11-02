@@ -118,8 +118,11 @@ jobs:
             };
 
             if (current?.verdict === 'approve' && rounds >= maxRounds) {
-              const approver = await findHumanApprover();
-              if (approver) {
+              // Si no se puede verificar el permiso, falla cerrado con un estado explícito (no deja el anterior).
+              const approver = await findHumanApprover().catch(() => undefined);
+              if (approver === undefined) {
+                await setStatus('pending', `${rounds} rondas: no se pudo verificar el permiso del revisor; reintentar`);
+              } else if (approver) {
                 await setStatus('success', `approve de la Factory y de @${approver} sobre ${head.slice(0, 7)} tras ${rounds} rondas`);
               } else {
                 await setStatus('pending', `${rounds} rondas: falta la aprobación de una persona sobre ${head.slice(0, 7)}`);
