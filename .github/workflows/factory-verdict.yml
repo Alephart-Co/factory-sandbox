@@ -7,6 +7,11 @@
 #   cómo se evalúa a sí mismo. Es seguro porque el job no hace checkout ni ejecuta código del PR: solo lee la API.
 # - Un PR de cualquier bot que no sea el de la Factory queda en rojo (no pasa como "PR humano").
 # - Un PR del bot que toque .github/ queda en rojo: los cambios al gate o al CI los aprueba una persona.
+#
+# Tope de rondas: desde FACTORY_MAX_ROUNDS rondas de cambios, el approve de la Factory ya no basta; hace falta además
+# una review "Approve" de una persona con permiso de escritura sobre el mismo head. pull_request_review corre la versión
+# del workflow que trae el PR (no existe una variante _target); es aceptable porque la App de la Factory no tiene permiso
+# Workflows (no puede empujar cambios a .github/workflows) y los PRs de personas no pasan por este gate.
 name: factory-verdict
 
 on:
@@ -14,6 +19,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
+  pull_request_review:
+    types: [submitted, dismissed]
 
 permissions:
   contents: read
@@ -27,7 +34,7 @@ concurrency:
 
 jobs:
   publicar-estado:
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
+    if: github.event_name == 'pull_request_target' || github.event_name == 'pull_request_review' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
@@ -94,7 +101,30 @@ jobs:
             const rounds = new Set(verdicts.filter(v => v.verdict === 'changes').map(v => v.sha)).size;
             const current = verdicts.filter(v => v.sha === head).at(-1);
 
-            if (current?.verdict === 'approve') {
+            // Desde el tope de rondas, el approve de la Factory necesita además el de una persona con escritura sobre este head.
+            const findHumanApprover = async () => {
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                owner, repo, pull_number: number, per_page: 100,
+              });
+              const candidates = reviews.filter(r =>
+                r.state === 'APPROVED' && r.commit_id === head && r.user?.type === 'User');
+              for (const review of candidates) {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner, repo, username: review.user.login,
+                });
+                if (['admin', 'write'].includes(data.permission)) return review.user.login;
+              }
+              return null;
+            };
+
+            if (current?.verdict === 'approve' && rounds >= maxRounds) {
+              const approver = await findHumanApprover();
+              if (approver) {
+                await setStatus('success', `approve de la Factory y de @${approver} sobre ${head.slice(0, 7)} tras ${rounds} rondas`);
+              } else {
+                await setStatus('pending', `${rounds} rondas: falta la aprobación de una persona sobre ${head.slice(0, 7)}`);
+              }
+            } else if (current?.verdict === 'approve') {
               await setStatus('success', `approve sobre ${head.slice(0, 7)} (${rounds} ronda(s) de cambios)`);
             } else if (rounds >= maxRounds && current?.verdict !== 'approve') {
               await setStatus('failure', `${rounds} rondas de cambios: escalar a una persona`);
