@@ -85,9 +85,44 @@ test('parseCOP rechaza decimales sin escala', () => {
   assert.equal(parseCOP('1,5'), null);
 });
 
-test('parseCOP rechaza un punto que no agrupa miles', () => {
+test('parseCOP rechaza un punto decimal sin escala', () => {
   assert.equal(parseCOP('1.2'), null);
-  assert.equal(parseCOP('1.2 millones'), null);
+  assert.equal(parseCOP('1.5'), null);
+  assert.equal(parseCOP('1.2345'), null);
+});
+
+test('parseCOP lee el punto como decimal con escala si lo siguen 1 o 2 dígitos', () => {
+  assert.equal(parseCOP('1.5 millones'), 1500000);
+  assert.equal(parseCOP('1.2 millones'), 1200000);
+  assert.equal(parseCOP('2.5 mil'), 2500);
+  assert.equal(parseCOP('1.25 millones'), 1250000);
+  assert.equal(parseCOP('2.5M'), 2500000);
+  assert.equal(parseCOP('1.5mil'), 1500);
+  assert.equal(parseCOP('2.5MIL'), 2500);
+  assert.equal(parseCOP('$1.5 millones'), 1500000);
+  assert.equal(parseCOP('1.5 millón'), 1500000);
+  assert.equal(parseCOP('0.5 millones'), 500000);
+  assert.equal(parseCOP('1.5 millones'), parseCOP('1,5 millones'));
+});
+
+test('parseCOP lee el punto como decimal con escala si lo siguen 4 o más dígitos', () => {
+  assert.equal(parseCOP('1.2345 millones'), 1234500);
+});
+
+test('parseCOP mantiene el punto de miles con escala si lo siguen 3 dígitos', () => {
+  assert.equal(parseCOP('1.200 millones'), 1200000000);
+  assert.equal(parseCOP('1.500 mil'), 1500000);
+});
+
+test('parseCOP rechaza mezclas de punto de miles y punto decimal con escala', () => {
+  assert.equal(parseCOP('1.234.5 millones'), null);
+  assert.equal(parseCOP('1.5.5 mil'), null);
+  assert.equal(parseCOP('1.200.5 mil'), null);
+  assert.equal(parseCOP('1.5,5 millones'), null);
+});
+
+test('parseCOP rechaza doble escala con punto decimal', () => {
+  assert.equal(parseCOP('1.5 mil millones'), null);
 });
 
 test('parseCOP rechaza grupos de miles mal formados', () => {
