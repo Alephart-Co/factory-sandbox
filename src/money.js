@@ -28,7 +28,7 @@ export function parseCOP(texto) {
   if (/-[\s$]*$/.test(antes)) return null;
 
   // Con escala, un punto seguido de 1-2 o de 4+ dígitos es decimal; con 3 sigue siendo punto de miles.
-  const normalizado = numero.replace(/^(\d+)\.(\d+)$/, '$1,$2');
+  const normalizado = numero.replace(/^(\d+)\.(\d{1,2}|\d{4,})$/, '$1,$2');
   const formato = normalizado.match(/^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/);
   if (!formato) return null;
   const [, entero, decimales] = formato;
