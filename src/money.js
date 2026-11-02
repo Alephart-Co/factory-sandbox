@@ -48,7 +48,6 @@ export function parseCOP(texto) {
   }
 
   if (decimales?.length === 3) return null;
-  if (escala === 1 && decimales) return null;
   if (escala === 1 && /^\d{10,}$/.test(entero)) return null;
 
   const valor = Number(entero.replaceAll('.', '') + (decimales ? '.' + decimales : ''));
