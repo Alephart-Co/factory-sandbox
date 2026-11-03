@@ -24,3 +24,8 @@ test('el ejemplo de parseCOP con punto decimal del README coincide con el códig
   assert.ok(readme.includes("`parseCOP('1.5 millones')` → `1500000`"));
   assert.equal(parseCOP('1.5 millones'), 1500000);
 });
+
+test('el ejemplo de parseCOP con apóstrofo de millones del README coincide con el código', () => {
+  assert.ok(readme.includes("`parseCOP(\"$1'200.000\")` → `1200000`"));
+  assert.equal(parseCOP("$1'200.000"), 1200000);
+});
