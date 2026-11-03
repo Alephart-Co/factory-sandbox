@@ -1,7 +1,7 @@
 # factory-sandbox
 
 Repo de juguete para probar Mastra Factory. No tiene datos reales.
-Pruebas: `npm test` (Node 20+).
+Pruebas: `npm test` (Node 20+, sin dependencias).
 
 ## Funciones de dinero
 
