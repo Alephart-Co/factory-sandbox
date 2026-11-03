@@ -13,10 +13,16 @@ export function formatCOP(value) {
 
 const ESCALAS = { mil: 1000, millon: 1000000, millón: 1000000, millones: 1000000 };
 
-// Lee un único monto en pesos escrito por el contacto ('$1.200.000', '95 mil', '1,2 millones', '1.5 millones', '2M').
+// Apóstrofo de millones ('1'200.000'): solo en la forma N'DDD.DDD, una vez, con ' o ’.
+const APOSTROFO_MILLONES = /(?<![\d.,'’])([1-9]\d{0,2})['’](\d{3}\.\d{3})(?!\d|[.,]\d)/;
+
+// Lee un único monto en pesos escrito por el contacto ('$1.200.000', "$1'200.000", '95 mil', '1,2 millones', '1.5 millones', '2M').
 // Devuelve el valor en pesos enteros, o null si no hay un monto claro y único.
 export function parseCOP(texto) {
   if (typeof texto !== 'string') return null;
+
+  const conApostrofo = APOSTROFO_MILLONES.test(texto);
+  if (conApostrofo) texto = texto.replace(APOSTROFO_MILLONES, '$1.$2');
 
   const numeros = [...texto.matchAll(/\d[\d.,]*/g)];
   if (numeros.length !== 1) return null;
@@ -41,6 +47,8 @@ export function parseCOP(texto) {
     else if (palabra === 'M') escala = 1000000;
     else if (minuscula === 'k' || minuscula === 'm' || minuscula.startsWith('mil')) return null;
   }
+
+  if (conApostrofo && escala > 1) return null;
 
   if (escala > 1) {
     const siguiente = despues.match(/^\s*\p{L}+\s+(\p{L}+)/u)?.[1];

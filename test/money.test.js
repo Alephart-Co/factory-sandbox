@@ -251,3 +251,24 @@ test('formatCOP sigue formateando cero', () => {
   assert.equal(formatCOP(0), '$0');
   assert.equal(formatCOP(-0), '$0');
 });
+
+test('parseCOP lee el apóstrofo como separador de millones', () => {
+  assert.equal(parseCOP("$1'200.000"), 1200000);
+  assert.equal(parseCOP("1'200.000 pesos"), 1200000);
+  assert.equal(parseCOP("$12'500.000"), 12500000);
+  assert.equal(parseCOP("123'456.789"), 123456789);
+  assert.equal(parseCOP('$1’200.000'), 1200000);
+  assert.equal(parseCOP("1'200.000."), 1200000);
+});
+
+test('parseCOP rechaza el apóstrofo mal formado', () => {
+  for (const texto of ["1'200", "1'200000", "1'2'000.000", "1''200.000", "1234'200.000", "1'200.000.000", "0'200.000", "-1'200.000"]) {
+    assert.equal(parseCOP(texto), null, texto);
+  }
+});
+
+test('parseCOP no mezcla el apóstrofo de millones con una escala', () => {
+  for (const texto of ["1'500 millones", "1'200.000 millones", "1'200.000 mil", "1'200.000 M"]) {
+    assert.equal(parseCOP(texto), null, texto);
+  }
+});
