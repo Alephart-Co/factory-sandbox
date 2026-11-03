@@ -48,7 +48,6 @@ export function parseCOP(texto) {
     else if (minuscula === 'k' || minuscula === 'm' || minuscula.startsWith('mil')) return null;
   }
 
-  if (conApostrofo && escala > 1) return null;
 
   if (escala > 1) {
     const siguiente = despues.match(/^\s*\p{L}+\s+(\p{L}+)/u)?.[1];
