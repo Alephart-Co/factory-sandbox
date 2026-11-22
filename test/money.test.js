@@ -272,3 +272,23 @@ test('parseCOP no mezcla el apóstrofo de millones con una escala', () => {
     assert.equal(parseCOP(texto), null, texto);
   }
 });
+
+test('parseCOP lee MM como millones', () => {
+  for (const texto of ['$2MM', '2 MM', '2MM']) {
+    assert.equal(parseCOP(texto), 2000000, texto);
+  }
+  assert.equal(parseCOP('1,5MM'), 1500000);
+  assert.equal(parseCOP('1.5MM'), 1500000);
+});
+
+test('parseCOP rechaza mm y otras secuencias de m', () => {
+  for (const texto of ['2mm', '2 mM', '2 Mm', '2MMM']) {
+    assert.equal(parseCOP(texto), null, texto);
+  }
+});
+
+test('parseCOP rechaza MM seguida de otra escala', () => {
+  for (const texto of ['2 MM mil', '5 mil MM', '2 MM millones']) {
+    assert.equal(parseCOP(texto), null, texto);
+  }
+});
